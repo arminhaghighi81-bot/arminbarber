@@ -27,26 +27,6 @@
       <span class="text-xs bg-slate-800 text-slate-300 px-3 py-1 rounded-xl border border-slate-700">نسخه پیشرفته</span>
     </div>
 
-    <!-- بخش جدید: لیست نوبت‌ها و مشتریان -->
-    <div class="space-y-4 border-b border-slate-800 pb-6">
-      <h2 class="text-sm font-bold text-sky-400 flex items-center gap-2">
-        <i class="fa-solid fa-users-rectangle"></i> لیست نوبت‌های رزرو شده مشتریان
-      </h2>
-      <div id="adminBookingsList" class="space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
-        <div class="text-xs text-slate-500 text-center py-2">در حال بارگذاری نوبت‌ها...</div>
-      </div>
-    </div>
-
-    <!-- بخش جدید: لیست سفارشات محصولات -->
-    <div class="space-y-4 border-b border-slate-800 pb-6">
-      <h2 class="text-sm font-bold text-amber-400 flex items-center gap-2">
-        <i class="fa-solid fa-bag-shopping"></i> لیست سفارشات محصولات فروشگاه
-      </h2>
-      <div id="adminOrdersList" class="space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
-        <div class="text-xs text-slate-500 text-center py-2">در حال بارگذاری سفارشات...</div>
-      </div>
-    </div>
-
     <!-- بخش اول: مدیریت سانس‌ها -->
     <div class="space-y-4 border-b border-slate-800 pb-6">
       <h2 class="text-sm font-bold text-emerald-400 flex items-center gap-2">
@@ -88,7 +68,7 @@
     </div>
 
     <!-- بخش سوم: مدیریت محصولات -->
-    <div class="space-y-4 pb-2">
+    <div class="space-y-4 border-b border-slate-800 pb-6">
       <div class="flex items-center justify-between">
         <h2 class="text-sm font-bold text-amber-400 flex items-center gap-2">
           <i class="fa-solid fa-store"></i> مدیریت محصولات فروشگاه
@@ -99,6 +79,32 @@
       </div>
       <div id="adminProductsList" class="space-y-2">
         <div class="text-xs text-slate-500 text-center py-2">در حال بارگذاری محصولات...</div>
+      </div>
+    </div>
+
+    <!-- بخش چهارم: لیست نوبت‌ها و مشتریان (انتقال یافته به پایین) -->
+    <div class="space-y-4 border-b border-slate-800 pb-6">
+      <div class="flex items-center justify-between">
+        <h2 class="text-sm font-bold text-sky-400 flex items-center gap-2">
+          <i class="fa-solid fa-users-rectangle"></i> لیست نوبت‌های رزرو شده مشتریان
+        </h2>
+        <span id="bookingsCountBadge" class="text-[11px] bg-sky-500/20 text-sky-300 px-2.5 py-0.5 rounded-full border border-sky-500/30 font-bold">0 مورد</span>
+      </div>
+      <div id="adminBookingsList" class="space-y-2.5 max-h-72 overflow-y-auto custom-scrollbar pr-1">
+        <div class="text-xs text-slate-500 text-center py-2">در حال بارگذاری نوبت‌ها...</div>
+      </div>
+    </div>
+
+    <!-- بخش پنجم: لیست سفارشات محصولات (انتقال یافته به پایین) -->
+    <div class="space-y-4 pb-2">
+      <div class="flex items-center justify-between">
+        <h2 class="text-sm font-bold text-amber-400 flex items-center gap-2">
+          <i class="fa-solid fa-bag-shopping"></i> لیست سفارشات محصولات فروشگاه
+        </h2>
+        <span id="ordersCountBadge" class="text-[11px] bg-amber-500/20 text-amber-300 px-2.5 py-0.5 rounded-full border border-amber-500/30 font-bold">0 مورد</span>
+      </div>
+      <div id="adminOrdersList" class="space-y-2.5 max-h-72 overflow-y-auto custom-scrollbar pr-1">
+        <div class="text-xs text-slate-500 text-center py-2">در حال بارگذاری سفارشات...</div>
       </div>
     </div>
 
@@ -210,59 +216,93 @@
       renderAdminTimes();
     }
 
-    // رندر لیست نوبت‌های رزرو شده
+    // رندر لیست کامل نوبت‌های رزرو شده همراه با دکمه حذف و رفع مشکل توضیحات
     function renderAdminBookings() {
       const container = document.getElementById('adminBookingsList');
+      const badge = document.getElementById('bookingsCountBadge');
       container.innerHTML = '';
+      badge.innerText = `${bookingsList.length} مورد`;
 
       if (bookingsList.length === 0) {
-        container.innerHTML = '<div class="text-xs text-slate-500 text-center py-2">هنوز نوبتی رزرو نشده است.</div>';
+        container.innerHTML = '<div class="text-xs text-slate-500 text-center py-3 bg-slate-800/40 rounded-xl">هنوز نوبتی رزرو نشده است.</div>';
         return;
       }
 
-      bookingsList.slice().reverse().forEach((item, index) => {
+      bookingsList.slice().reverse().forEach((item, originalReverseIndex) => {
+        const index = bookingsList.length - 1 - originalReverseIndex;
         const div = document.createElement('div');
-        div.className = "p-3 bg-slate-800 border border-slate-700 rounded-xl text-xs space-y-1.5";
+        div.className = "p-3 bg-slate-800 border border-slate-700 rounded-xl text-xs space-y-2";
+        
+        const noteText = (item.address && item.address.trim() !== '') ? item.address : 'بدون توضیحات';
+
         div.innerHTML = `
-          <div class="flex justify-between items-center font-bold text-white">
-            <span>👤 ${item.name} (${item.phone})</span>
-            <span class="text-emerald-400">${item.serviceName}</span>
+          <div class="flex justify-between items-center font-bold text-white border-b border-slate-700/60 pb-1.5">
+            <span>👤 ${item.name || 'بدون نام'} (<span dir="ltr">${item.phone || '-'}</span>)</span>
+            <span class="text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-lg border border-emerald-500/20">${item.serviceName || 'خدمت'}</span>
           </div>
-          <div class="text-slate-300 flex justify-between">
-            <span>📅 تاریخ: ${item.date} | ساعت: ${item.time}</span>
+          <div class="text-slate-300 flex justify-between items-center">
+            <span>📅 تاریخ: <strong class="text-white" dir="ltr">${item.date || '-'}</strong> | ساعت: <strong class="text-white" dir="ltr">${item.time || '-'}</strong></span>
+            <button onclick="deleteBooking(${index})" class="bg-rose-500/20 text-rose-400 hover:bg-rose-500/30 px-2 py-1 rounded-lg transition cursor-pointer flex items-center gap-1">
+              <i class="fa-solid fa-trash text-[10px]"></i> حذف
+            </button>
           </div>
-          <div class="text-slate-400 text-[11px] bg-slate-900/50 p-2 rounded-lg">
-            توضیحات: ${item.address || 'بدون توضیحات'}
+          <div class="text-slate-300 text-[11px] bg-slate-900/60 p-2.5 rounded-lg border border-slate-800 leading-relaxed">
+            <span class="text-slate-400 font-bold">توضیحات مشتری:</span> ${noteText}
           </div>
         `;
         container.appendChild(div);
       });
     }
 
-    // رندر لیست سفارشات محصولات
+    function deleteBooking(index) {
+      if (confirm('آیا از حذف این نوبت مطمئن هستید؟')) {
+        bookingsList.splice(index, 1);
+        renderAdminBookings();
+      }
+    }
+
+    // رندر لیست کامل سفارشات محصولات همراه با دکمه حذف و رفع مشکل توضیحات
     function renderAdminOrders() {
       const container = document.getElementById('adminOrdersList');
+      const badge = document.getElementById('ordersCountBadge');
       container.innerHTML = '';
+      badge.innerText = `${ordersList.length} مورد`;
 
       if (ordersList.length === 0) {
-        container.innerHTML = '<div class="text-xs text-slate-500 text-center py-2">هنوز سفارشی ثبت نشده است.</div>';
+        container.innerHTML = '<div class="text-xs text-slate-500 text-center py-3 bg-slate-800/40 rounded-xl">هنوز سفارشی ثبت نشده است.</div>';
         return;
       }
 
-      ordersList.slice().reverse().forEach((item, index) => {
+      ordersList.slice().reverse().forEach((item, originalReverseIndex) => {
+        const index = ordersList.length - 1 - originalReverseIndex;
         const div = document.createElement('div');
-        div.className = "p-3 bg-slate-800 border border-slate-700 rounded-xl text-xs space-y-1.5";
+        div.className = "p-3 bg-slate-800 border border-slate-700 rounded-xl text-xs space-y-2";
+        
+        const noteText = (item.address && item.address.trim() !== '') ? item.address : 'بدون توضیحات';
+
         div.innerHTML = `
-          <div class="flex justify-between items-center font-bold text-white">
-            <span>👤 ${item.name} (${item.phone})</span>
-            <span class="text-amber-400">🛒 ${item.productName}</span>
+          <div class="flex justify-between items-center font-bold text-white border-b border-slate-700/60 pb-1.5">
+            <span>👤 ${item.name || 'بدون نام'} (<span dir="ltr">${item.phone || '-'}</span>)</span>
+            <span class="text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-lg border border-amber-500/20">🛒 ${item.productName || 'محصول'}</span>
           </div>
-          <div class="text-slate-400 text-[11px] bg-slate-900/50 p-2 rounded-lg">
-            جزئیات تحویل / توضیحات: ${item.address || 'بدون توضیحات'}
+          <div class="flex justify-end">
+            <button onclick="deleteOrder(${index})" class="bg-rose-500/20 text-rose-400 hover:bg-rose-500/30 px-2 py-1 rounded-lg transition cursor-pointer flex items-center gap-1">
+              <i class="fa-solid fa-trash text-[10px]"></i> حذف
+            </button>
+          </div>
+          <div class="text-slate-300 text-[11px] bg-slate-900/60 p-2.5 rounded-lg border border-slate-800 leading-relaxed">
+            <span class="text-slate-400 font-bold">جزئیات تحویل / توضیحات:</span> ${noteText}
           </div>
         `;
         container.appendChild(div);
       });
+    }
+
+    function deleteOrder(index) {
+      if (confirm('آیا از حذف این سفارش مطمئن هستید؟')) {
+        ordersList.splice(index, 1);
+        renderAdminOrders();
+      }
     }
 
     function renderAdminCalendar() {
