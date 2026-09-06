@@ -22,9 +22,29 @@
   <div class="bg-slate-900 border border-slate-800 rounded-3xl p-4 sm:p-6 shadow-2xl space-y-6">
     <div class="flex items-center justify-between border-b border-slate-800 pb-4">
       <h1 class="text-base sm:text-lg font-bold text-white flex items-center gap-2">
-        <i class="fa-solid fa-gear text-emerald-400"></i> پنل مدیریت
+        <i class="fa-solid fa-gear text-emerald-400"></i> پنل مدیریت آرایشگاه آرمین
       </h1>
-      <span class="text-xs bg-slate-800 text-slate-300 px-3 py-1 rounded-xl border border-slate-700">نسخه کامل ادمین</span>
+      <span class="text-xs bg-slate-800 text-slate-300 px-3 py-1 rounded-xl border border-slate-700">نسخه پیشرفته</span>
+    </div>
+
+    <!-- بخش جدید: لیست نوبت‌ها و مشتریان -->
+    <div class="space-y-4 border-b border-slate-800 pb-6">
+      <h2 class="text-sm font-bold text-sky-400 flex items-center gap-2">
+        <i class="fa-solid fa-users-rectangle"></i> لیست نوبت‌های رزرو شده مشتریان
+      </h2>
+      <div id="adminBookingsList" class="space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
+        <div class="text-xs text-slate-500 text-center py-2">در حال بارگذاری نوبت‌ها...</div>
+      </div>
+    </div>
+
+    <!-- بخش جدید: لیست سفارشات محصولات -->
+    <div class="space-y-4 border-b border-slate-800 pb-6">
+      <h2 class="text-sm font-bold text-amber-400 flex items-center gap-2">
+        <i class="fa-solid fa-bag-shopping"></i> لیست سفارشات محصولات فروشگاه
+      </h2>
+      <div id="adminOrdersList" class="space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
+        <div class="text-xs text-slate-500 text-center py-2">در حال بارگذاری سفارشات...</div>
+      </div>
     </div>
 
     <!-- بخش اول: مدیریت سانس‌ها -->
@@ -41,7 +61,6 @@
       <div class="space-y-3">
         <div class="flex items-center justify-between flex-wrap gap-2">
           <span class="text-xs text-slate-400">برای بستن یا آزاد کردن هر بازه روی آن کلیک کنید:</span>
-          <!-- کلید انتخاب نوع نمایش بازه‌ها در ادمین -->
           <div class="flex bg-slate-800 p-1 rounded-xl border border-slate-700 text-xs">
             <button onclick="setAdminSlotMode(30)" id="mode30Btn" class="px-3 py-1 rounded-lg font-bold transition bg-emerald-500 text-white">بازه‌های ۳۰ دقیقه‌ای</button>
             <button onclick="setAdminSlotMode(60)" id="mode60Btn" class="px-3 py-1 rounded-lg font-bold transition text-slate-400">بازه‌های ۱ ساعته</button>
@@ -141,14 +160,15 @@
   </div>
 
   <script>
-    // آدرس ورکر جدید مشتری
     const WORKER_URL = "https://late-truth-f652.arminhaghighi81.workers.dev";
     
     let customServices = [];
     let customProducts = [];
     let disabledSlots = [];
+    let bookingsList = [];
+    let ordersList = [];
     let selectedAdminDateKey = "";
-    let adminSlotStep = 30; // پیش‌فرض بازه‌های ۳۰ دقیقه‌ای
+    let adminSlotStep = 30;
 
     document.addEventListener("DOMContentLoaded", () => {
       loadAdminData();
@@ -163,6 +183,8 @@
         customProducts = Array.isArray(data.customProducts) ? data.customProducts : [];
         customServices = Array.isArray(data.customServices) ? data.customServices : [];
         disabledSlots = Array.isArray(data.disabledSlots) ? data.disabledSlots : [];
+        bookingsList = Array.isArray(data.bookingsList) ? data.bookingsList : [];
+        ordersList = Array.isArray(data.ordersList) ? data.ordersList : [];
       } catch(e) {
         console.warn("خطا در دریافت اطلاعات:", e);
       }
@@ -170,6 +192,8 @@
       renderAdminTimes();
       renderAdminServices();
       renderAdminProducts();
+      renderAdminBookings();
+      renderAdminOrders();
     }
 
     function setAdminSlotMode(minutes) {
@@ -186,7 +210,61 @@
       renderAdminTimes();
     }
 
-    // ساخت تقویم ۳۰ روزه برای ادمین
+    // رندر لیست نوبت‌های رزرو شده
+    function renderAdminBookings() {
+      const container = document.getElementById('adminBookingsList');
+      container.innerHTML = '';
+
+      if (bookingsList.length === 0) {
+        container.innerHTML = '<div class="text-xs text-slate-500 text-center py-2">هنوز نوبتی رزرو نشده است.</div>';
+        return;
+      }
+
+      bookingsList.slice().reverse().forEach((item, index) => {
+        const div = document.createElement('div');
+        div.className = "p-3 bg-slate-800 border border-slate-700 rounded-xl text-xs space-y-1.5";
+        div.innerHTML = `
+          <div class="flex justify-between items-center font-bold text-white">
+            <span>👤 ${item.name} (${item.phone})</span>
+            <span class="text-emerald-400">${item.serviceName}</span>
+          </div>
+          <div class="text-slate-300 flex justify-between">
+            <span>📅 تاریخ: ${item.date} | ساعت: ${item.time}</span>
+          </div>
+          <div class="text-slate-400 text-[11px] bg-slate-900/50 p-2 rounded-lg">
+            توضیحات: ${item.address || 'بدون توضیحات'}
+          </div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    // رندر لیست سفارشات محصولات
+    function renderAdminOrders() {
+      const container = document.getElementById('adminOrdersList');
+      container.innerHTML = '';
+
+      if (ordersList.length === 0) {
+        container.innerHTML = '<div class="text-xs text-slate-500 text-center py-2">هنوز سفارشی ثبت نشده است.</div>';
+        return;
+      }
+
+      ordersList.slice().reverse().forEach((item, index) => {
+        const div = document.createElement('div');
+        div.className = "p-3 bg-slate-800 border border-slate-700 rounded-xl text-xs space-y-1.5";
+        div.innerHTML = `
+          <div class="flex justify-between items-center font-bold text-white">
+            <span>👤 ${item.name} (${item.phone})</span>
+            <span class="text-amber-400">🛒 ${item.productName}</span>
+          </div>
+          <div class="text-slate-400 text-[11px] bg-slate-900/50 p-2 rounded-lg">
+            جزئیات تحویل / توضیحات: ${item.address || 'بدون توضیحات'}
+          </div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
     function renderAdminCalendar() {
       const container = document.getElementById('adminDateContainer');
       container.innerHTML = '';
@@ -232,14 +310,13 @@
       }
     }
 
-    // رندر کردن سانس‌ها مطابق ساختار جدید بازه‌های ربات مشتری
     function renderAdminTimes() {
       const container = document.getElementById('adminTimeSlotsContainer');
       container.innerHTML = '';
 
       const slots = [];
-      let currentMinutes = 10 * 60; // شروع از ۱۰:۰۰ صبح
-      const endMinutes = 22 * 60;   // پایان در ۲۲:۰۰ شب
+      let currentMinutes = 10 * 60;
+      const endMinutes = 22 * 60;
 
       while (currentMinutes + adminSlotStep <= endMinutes) {
         const startHour = Math.floor(currentMinutes / 60);
@@ -314,7 +391,6 @@
       });
     }
 
-    // مدیریت خدمات در ادمین
     function renderAdminServices() {
       const container = document.getElementById('adminServicesList');
       container.innerHTML = '';
@@ -370,25 +446,15 @@
       const price = document.getElementById('modalServicePrice').value.trim();
       const duration = parseInt(document.getElementById('modalServiceDuration').value) || 30;
 
-      if (!name || !price) {
-        alert('لطفاً عنوان و قیمت خدمت را وارد کنید.');
-        return;
-      }
-
-      if (index > -1) {
-        customServices[index] = { name, price, duration };
-      } else {
-        customServices.push({ name, price, duration });
-      }
+      if (!name || !price) { alert('لطفاً عنوان و قیمت خدمت را وارد کنید.'); return; }
+      if (index > -1) { customServices[index] = { name, price, duration }; } 
+      else { customServices.push({ name, price, duration }); }
 
       closeServiceModal();
       renderAdminServices();
     }
 
-    function editService(index) {
-      openServiceModal(index);
-    }
-
+    function editService(index) { openServiceModal(index); }
     function deleteService(index) {
       if (confirm('آیا از حذف این خدمت مطمئن هستید؟')) {
         customServices.splice(index, 1);
@@ -396,7 +462,6 @@
       }
     }
 
-    // مدیریت محصولات در ادمین
     function renderAdminProducts() {
       const container = document.getElementById('adminProductsList');
       container.innerHTML = '';
@@ -464,25 +529,15 @@
       const price = document.getElementById('modalProductPrice').value.trim();
       const image = document.getElementById('modalProductImageBase64').value.trim();
 
-      if (!name || !price || !image) {
-        alert('لطفاً اطلاعات محصول و تصویر آن را کامل انتخاب کنید.');
-        return;
-      }
-
-      if (index > -1) {
-        customProducts[index] = { name, price, image };
-      } else {
-        customProducts.push({ name, price, image });
-      }
+      if (!name || !price || !image) { alert('لطفاً اطلاعات محصول و تصویر آن را کامل انتخاب کنید.'); return; }
+      if (index > -1) { customProducts[index] = { name, price, image }; } 
+      else { customProducts.push({ name, price, image }); }
 
       closeProductModal();
       renderAdminProducts();
     }
 
-    function editProduct(index) {
-      openProductModal(index);
-    }
-
+    function editProduct(index) { openProductModal(index); }
     function deleteProduct(index) {
       if (confirm('آیا از حذف این محصول مطمئن هستید؟')) {
         customProducts.splice(index, 1);
@@ -490,7 +545,6 @@
       }
     }
 
-    // ذخیره نهایی تمامی تغییرات روی کلودفلر ورکر
     async function saveAdminChanges() {
       const btn = document.getElementById('saveBtn');
       btn.disabled = true;
@@ -500,11 +554,11 @@
         const res = await fetch(`${WORKER_URL}/admin-update`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ disabledSlots, customProducts, customServices })
+          body: JSON.stringify({ disabledSlots, customProducts, customServices, bookingsList, ordersList })
         });
 
         if (res.ok) {
-          alert('کلیه تغییرات (ساعت‌ها، خدمات و محصولات) با موفقیت در سرور ذخیره شد!');
+          alert('کلیه تغییرات با موفقیت در سرور ذخیره شد!');
         } else {
           alert('خطا در ذخیره اطلاعات روی سرور.');
         }
