@@ -82,7 +82,7 @@
       </div>
     </div>
 
-    <!-- بخش چهارم: لیست نوبت‌ها و مشتریان (انتقال یافته به پایین) -->
+    <!-- بخش چهارم: لیست نوبت‌ها و مشتریان -->
     <div class="space-y-4 border-b border-slate-800 pb-6">
       <div class="flex items-center justify-between">
         <h2 class="text-sm font-bold text-sky-400 flex items-center gap-2">
@@ -95,7 +95,7 @@
       </div>
     </div>
 
-    <!-- بخش پنجم: لیست سفارشات محصولات (انتقال یافته به پایین) -->
+    <!-- بخش پنجم: لیست سفارشات محصولات فروشگاه -->
     <div class="space-y-4 pb-2">
       <div class="flex items-center justify-between">
         <h2 class="text-sm font-bold text-amber-400 flex items-center gap-2">
@@ -216,7 +216,7 @@
       renderAdminTimes();
     }
 
-    // رندر لیست کامل نوبت‌های رزرو شده همراه با دکمه حذف و رفع مشکل توضیحات
+    // رندر لیست کامل نوبت‌های رزرو شده همراه با پشتیبانی کامل از تمام کلیدهای توضیحات
     function renderAdminBookings() {
       const container = document.getElementById('adminBookingsList');
       const badge = document.getElementById('bookingsCountBadge');
@@ -233,7 +233,9 @@
         const div = document.createElement('div');
         div.className = "p-3 bg-slate-800 border border-slate-700 rounded-xl text-xs space-y-2";
         
-        const noteText = (item.address && item.address.trim() !== '') ? item.address : 'بدون توضیحات';
+        // استخراج توضیحات از تمام فیلدهای احتمالی در داده‌های ارسالی
+        const noteText = item.note || item.description || item.address || item.comment || '';
+        const hasNote = noteText.trim() !== '';
 
         div.innerHTML = `
           <div class="flex justify-between items-center font-bold text-white border-b border-slate-700/60 pb-1.5">
@@ -247,7 +249,7 @@
             </button>
           </div>
           <div class="text-slate-300 text-[11px] bg-slate-900/60 p-2.5 rounded-lg border border-slate-800 leading-relaxed">
-            <span class="text-slate-400 font-bold">توضیحات مشتری:</span> ${noteText}
+            <span class="text-slate-400 font-bold">توضیحات مشتری:</span> ${hasNote ? noteText : '<span class="text-slate-500 italic">بدون توضیحات</span>'}
           </div>
         `;
         container.appendChild(div);
@@ -261,7 +263,7 @@
       }
     }
 
-    // رندر لیست کامل سفارشات محصولات همراه با دکمه حذف و رفع مشکل توضیحات
+    // رندر لیست کامل سفارشات محصولات همراه با پشتیبانی کامل از تمام کلیدهای توضیحات
     function renderAdminOrders() {
       const container = document.getElementById('adminOrdersList');
       const badge = document.getElementById('ordersCountBadge');
@@ -278,7 +280,9 @@
         const div = document.createElement('div');
         div.className = "p-3 bg-slate-800 border border-slate-700 rounded-xl text-xs space-y-2";
         
-        const noteText = (item.address && item.address.trim() !== '') ? item.address : 'بدون توضیحات';
+        // استخراج توضیحات از تمام فیلدهای احتمالی در داده‌های ارسالی
+        const noteText = item.note || item.description || item.address || item.comment || '';
+        const hasNote = noteText.trim() !== '';
 
         div.innerHTML = `
           <div class="flex justify-between items-center font-bold text-white border-b border-slate-700/60 pb-1.5">
@@ -291,7 +295,7 @@
             </button>
           </div>
           <div class="text-slate-300 text-[11px] bg-slate-900/60 p-2.5 rounded-lg border border-slate-800 leading-relaxed">
-            <span class="text-slate-400 font-bold">جزئیات تحویل / توضیحات:</span> ${noteText}
+            <span class="text-slate-400 font-bold">جزئیات تحویل / توضیحات:</span> ${hasNote ? noteText : '<span class="text-slate-500 italic">بدون توضیحات</span>'}
           </div>
         `;
         container.appendChild(div);
