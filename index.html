@@ -113,7 +113,6 @@
  </div>
   
  <script>
-    // تنظیم آدرس ورکر مشتری
     const WORKER_URL = "https://late-truth-f652.arminhaghighi81.workers.dev";
     
     let customServices = [];
@@ -348,6 +347,7 @@
   
     async function finalizeOrder(adminText, userText, slotsToDisable) {
       try {
+        // ۱. غیرفعال کردن اسلات زمانی در صورت رزرو خدمت
         if (itemType === 'service' && slotsToDisable.length > 0) {
           slotsToDisable.forEach(subKey => { if (!disabledSlots.includes(subKey)) disabledSlots.push(subKey); });
           await fetch(`${WORKER_URL}/admin-update`, {
@@ -356,13 +356,53 @@
             body: JSON.stringify({ disabledSlots, customProducts, customServices })
           });
         }
+
+        const name = document.getElementById('custName').value.trim();
+        const phone = document.getElementById('custPhone').value.trim();
+        const address = document.getElementById('custAddress').value.trim() || "بدون توضیحات";
+
+        // ۲. ساختاردهی پِی‌لود بر اساس نوع درخواست (نوبت یا سفارش)
+        let payload = {
+          adminText,
+          userChatId,
+          userText
+        };
+
+        if (itemType === 'service') {
+          payload.isBooking = true;
+          payload.bookingData = {
+            name: name,
+            phone: phone,
+            serviceName: selectedItem.name,
+            price: selectedItem.price,
+            date: selectedDateKey,
+            time: selectedTimeSlot,
+            duration: serviceDuration,
+            description: address,
+            createdAt: new Date().toISOString()
+          };
+        } else {
+          payload.isOrder = true;
+          payload.orderData = {
+            name: name,
+            phone: phone,
+            productName: selectedItem.name,
+            price: selectedItem.price,
+            description: address,
+            createdAt: new Date().toISOString()
+          };
+        }
+
+        // ۳. ارسال درخواست نهایی به ورکر برای ذخیره در KV و ارسال پیام به ربات
         await fetch(`${WORKER_URL}/`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ adminText, userChatId, userText, bookingInfo: selectedItem })
+          body: JSON.stringify(payload)
         });
-      } catch (err) { console.error(err); }
-      finally {
+
+      } catch (err) { 
+        console.error("Error in finalizeOrder:", err); 
+      } finally {
         setTimeout(() => { if (window.Bale && window.Bale.WebApp) window.Bale.WebApp.close(); }, 6000);
       }
     }
