@@ -484,12 +484,24 @@
           return;
         }
 
-        let slotsToDisable = [], adminText = "", userText = "";
+let slotsToDisable = [], adminText = "", userText = "", slotKeyExtra = "", dateExtra = "", timeExtra = "";
 
         if (itemType === 'service') {
-          slotsToDisable.push(`${selectedDateKey}_${selectedTimeSlot}`);
-          adminText = `💈 **نوبت جدید در آرایشگاه آرمین**\n\n👤 مشتری: ${name}\n📞 تلفن: ${phone}\n✂️ خدمت: ${selectedItem.name} (${selectedItem.price})\n⏰ زمان: ${selectedDateKey} ساعت ${selectedTimeSlot} (مدت: ${serviceDuration} دقیقه)\n💬 توضیحات: ${address}`;
-          userText = `✅ **رزرو شما با موفقیت ثبت شد!**\n\nسلام ${name} عزیز،\nنوبت شما برای خدمت **${selectedItem.name}** (${selectedItem.price}) در تاریخ **${selectedDateKey} ساعت ${selectedTimeSlot}** ثبت گردید.\n\nمنتظر حضور شما در آرایشگاه آرمین هستیم!✂️`;
+          slotKeyExtra = `${selectedDateKey}_${selectedTimeSlot}`;
+          dateExtra = selectedDateKey;
+          timeExtra = selectedTimeSlot;
+          slotsToDisable.push(slotKeyExtra);
+
+          // محاسبه روز هفته بر اساس تاریخ انتخاب شده
+          const [jy, jm, jd] = selectedDateKey.split('-').map(Number);
+          const gDate = jalaali.toGregorian(jy, jm, jd);
+          const dObj = new Date(gDate.gy, gDate.gm - 1, gDate.gd);
+          const persianDays = ['یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنج‌شنبه', 'جمعه', 'شنبه'];
+          const dayName = persianDays[dObj.getDay()];
+
+          adminText = `💈 **نوبت جدید در آرایشگاه آرمین**\n\n👤 مشتری: ${name}\n📞 تلفن: ${phone}\n✂️ خدمت: ${selectedItem.name} (${selectedItem.price})\n⏰ زمان: روز ${dayName} تاریخ ${selectedDateKey} ساعت ${selectedTimeSlot} (مدت: ${serviceDuration} دقیقه)\n💬 توضیحات: ${address}`;
+          
+          userText = `✅ **رزرو شما با موفقیت ثبت شد!**\n\nسلام ${name} عزیز،\nنوبت شما برای خدمت **${selectedItem.name}** (${selectedItem.price}) در روز **${dayName}** تاریخ **${selectedDateKey}** ساعت **${selectedTimeSlot}** ثبت گردید.\n\nمنتظر حضور شما در آرایشگاه آرمین هستیم!✂️`;
         } else {
           adminText = `🛍️ **سفارش محصول جدید (تحویل در سالن)**\n\n👤 مشتری: ${name}\n📞 تلفن: ${phone}\n📦 محصول: ${selectedItem.name} (${selectedItem.price})\n🕒 جزئیات تحویل: ${address}`;
           userText = `✅ **سفارش محصول شما ثبت شد!**\n\nسلام ${name} عزیز،\nسفارش خرید **${selectedItem.name}** (${selectedItem.price}) ثبت گردید. می‌توانید برای دریافت محصول به سالن مراجعه کنید.`;
@@ -502,9 +514,7 @@
         document.getElementById('bottomBar').classList.add('hidden');
         document.getElementById('successState').classList.remove('hidden');
   
-        finalizeOrder(adminText, userText, slotsToDisable);
-      }
-    }
+        finalizeOrder(adminText, userText, slotsToDisable, slotKeyExtra, dateExtra, timeExtra);
   
     function prevStep() {
       if (step === 2) {
