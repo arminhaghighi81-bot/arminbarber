@@ -114,7 +114,7 @@
       <div id="customConfirmModal" class="absolute inset-0 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4 hidden z-50">
         <div class="bg-slate-900 border border-slate-700 p-4 rounded-2xl w-full max-w-xs text-center space-y-3 shadow-2xl">
           <i class="fa-solid fa-triangle-exclamation text-amber-400 text-3xl"></i>
-          <h3 class="text-xs font-bold text-white" id="confirmText">آیا مطمئن هستید؟</h3>
+          <h3 class="text-xs font-bold text-white">آیا مطمئن هستید؟</h3>
           <p class="text-[11px] text-slate-400">زمان نوبت شما بعد از لغو آزاد خواهد شد.</p>
           <div class="flex gap-2 pt-2">
             <button onclick="closeConfirmModal(false)" class="w-1/2 py-2 bg-slate-800 text-slate-300 rounded-xl text-xs font-semibold cursor-pointer hover:bg-slate-700">انصراف</button>
@@ -140,7 +140,7 @@
     
     let step = 1, selectedItem = null, serviceDuration = 30, slotStepMinutes = 30, itemType = "service", selectedDateKey = "", selectedTimeSlot = "";
     let userChatId = null;
-    let pendingCancelKey = null;
+    let pendingCancelId = null;
   
     try {
       if (window.Bale && window.Bale.WebApp) {
@@ -372,7 +372,7 @@
           await fetch(`${WORKER_URL}/admin-update`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ disabledSlots, customProducts, customServices })
+            body: JSON.stringify({ disabledSlots })
           });
         }
 
@@ -389,7 +389,9 @@
         if (itemType === 'service') {
           payload.isBooking = true;
           payload.bookingData = {
-            name: name,
+            id: Date.now().toString(),
+            userChatId: userChatId,
+            userName: name,
             phone: phone,
             serviceName: selectedItem.name,
             price: selectedItem.price,
@@ -402,7 +404,9 @@
         } else {
           payload.isOrder = true;
           payload.orderData = {
-            name: name,
+            id: Date.now().toString(),
+            userChatId: userChatId,
+            userName: name,
             phone: phone,
             productName: selectedItem.name,
             price: selectedItem.price,
@@ -455,7 +459,6 @@
         step = 3;
         document.getElementById('step2').classList.add('hidden');
         document.getElementById('step3').classList.remove('hidden');
-        document.getElementById('addressBox').classList.remove('hidden');
         document.getElementById('stepBadge').innerText = '۳';
         document.getElementById('stepTitle').innerText = 'اطلاعات تماس و توضیحات';
         document.getElementById('descLabel').innerText = 'توضیحات یا یادداشت برای نوبت (اختیاری):';
@@ -557,10 +560,14 @@
       myBookingsContainer.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">در حال بررسی نوبت‌های شما...</p>';
 
       try {
-        const res = await fetch(`${WORKER_URL}/my-bookings?chatId=${userChatId}`);
-        const bookings = await res.json();
+        const res = await fetch(`${WORKER_URL}/admin-data`, { cache: 'no-store' });
+        const data = await res.json();
+        const bookings = Array.isArray(data.bookingsList) ? data.bookingsList : [];
 
-        if (!Array.isArray(bookings) || bookings.length === 0) {
+        // فیلتر نوبت‌ها بر اساس چت‌آی‌دی کاربر
+        const userBookings = bookings.filter(b => String(b.userChatId) === String(userChatId));
+
+        if (userBookings.length === 0) {
           showNoActiveBookings(myBookingsContainer);
           return;
         }
@@ -568,7 +575,7 @@
         const now = new Date();
         const activeBookings = [];
 
-        bookings.forEach(b => {
+        userBookings.forEach(b => {
           if (!b.date || !b.time) return;
           try {
             const parts = b.date.split('-'); 
@@ -599,8 +606,6 @@
         `;
 
         activeBookings.forEach(b => {
-          const safeKey = b.slotKey || "";
-          
           let canCancel = true;
           if (b.date && b.time) {
             try {
@@ -624,7 +629,7 @@
                 ${!canCancel ? '<p class="text-[10px] text-rose-400 mt-1">کمتر از ۴ ساعت مانده (غیرقابل لغو)</p>' : ''}
               </div>
               ${canCancel ? `
-                <button onclick="confirmCancel('${safeKey}')" class="px-3 py-1.5 bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white border border-rose-500/20 rounded-lg text-xs font-semibold transition cursor-pointer">
+                <button onclick="confirmCancel('${b.id}')" class="px-3 py-1.5 bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white border border-rose-500/20 rounded-lg text-xs font-semibold transition cursor-pointer">
                   لغو نوبت
                 </button>` : `
                 <button disabled class="px-3 py-1.5 bg-slate-800 text-slate-600 border border-slate-700 rounded-lg text-xs font-semibold cursor-not-allowed">
@@ -650,25 +655,25 @@
       `;
     }
 
-    function confirmCancel(slotKey) {
-      pendingCancelKey = slotKey;
+    function confirmCancel(bookingId) {
+      pendingCancelId = bookingId;
       document.getElementById('customConfirmModal').classList.remove('hidden');
     }
 
     function closeConfirmModal(isConfirmed) {
       document.getElementById('customConfirmModal').classList.add('hidden');
-      if (isConfirmed && pendingCancelKey) {
-        executeCancellation(pendingCancelKey);
+      if (isConfirmed && pendingCancelId) {
+        executeCancellation(pendingCancelId);
       }
-      pendingCancelKey = null;
+      pendingCancelId = null;
     }
 
-    async function executeCancellation(slotKey) {
+    async function executeCancellation(bookingId) {
       try {
-        const res = await fetch(`${WORKER_URL}/cancel`, {
+        const res = await fetch(`${WORKER_URL}/cancel-booking`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ slotKey, chatId: userChatId })
+          body: JSON.stringify({ bookingId, userChatId })
         });
         const data = await res.json();
 
@@ -676,7 +681,7 @@
           alert('نوبت شما با موفقیت لغو شد و زمان آن آزاد گردید.');
           location.reload();
         } else {
-          alert(data.message || 'خطا در لغو نوبت.');
+          alert(data.error || 'خطا در لغو نوبت.');
         }
       } catch (err) {
         console.error(err);
