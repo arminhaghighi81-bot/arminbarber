@@ -114,7 +114,7 @@
       <div id="customConfirmModal" class="absolute inset-0 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4 hidden z-50">
         <div class="bg-slate-900 border border-slate-700 p-4 rounded-2xl w-full max-w-xs text-center space-y-3 shadow-2xl">
           <i class="fa-solid fa-triangle-exclamation text-amber-400 text-3xl"></i>
-          <h3 class="text-xs font-bold text-white">آیا مطمئن هستید؟</h3>
+          <h3 class="text-xs font-bold text-white" id="confirmText">آیا مطمئن هستید؟</h3>
           <p class="text-[11px] text-slate-400">زمان نوبت شما بعد از لغو آزاد خواهد شد.</p>
           <div class="flex gap-2 pt-2">
             <button onclick="closeConfirmModal(false)" class="w-1/2 py-2 bg-slate-800 text-slate-300 rounded-xl text-xs font-semibold cursor-pointer hover:bg-slate-700">انصراف</button>
@@ -140,7 +140,7 @@
     
     let step = 1, selectedItem = null, serviceDuration = 30, slotStepMinutes = 30, itemType = "service", selectedDateKey = "", selectedTimeSlot = "";
     let userChatId = null;
-    let pendingCancelId = null;
+    let pendingCancelKey = null;
   
     try {
       if (window.Bale && window.Bale.WebApp) {
@@ -306,8 +306,8 @@
       document.getElementById('timeLabel').innerText = labelText;
 
       const slots = [];
-      let currentMinutes = 10 * 60; 
-      const endMinutes = 22 * 60;   
+      let currentMinutes = 10 * 60; // ۱۰:۰۰ صبح
+      const endMinutes = 22 * 60;   // ۲۲:۰۰ شب
 
       while (currentMinutes + slotStepMinutes <= endMinutes) {
         const startHour = Math.floor(currentMinutes / 60);
@@ -365,14 +365,15 @@
       return /^(09[0-9]{9}|\+989[0-9]{9})$/.test(phone);
     }
   
-    async function finalizeOrder(adminText, userText, slotsToDisable) {
+    async function finalizeOrder(adminText, userText, slotsToDisable, slotKeyExtra, dateExtra, timeExtra) {
       try {
+        // ۱. غیرفعال کردن اسلات زمانی در صورت رزرو خدمت
         if (itemType === 'service' && slotsToDisable.length > 0) {
           slotsToDisable.forEach(subKey => { if (!disabledSlots.includes(subKey)) disabledSlots.push(subKey); });
           await fetch(`${WORKER_URL}/admin-update`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ disabledSlots })
+            body: JSON.stringify({ disabledSlots, customProducts, customServices })
           });
         }
 
@@ -380,18 +381,20 @@
         const phone = document.getElementById('custPhone').value.trim();
         const address = document.getElementById('custAddress').value.trim() || "بدون توضیحات";
 
+        // ۲. ساختاردهی پِی‌لود بر اساس نوع درخواست (نوبت یا سفارش)
         let payload = {
           adminText,
           userChatId,
-          userText
+          userText,
+          slotKey: slotKeyExtra,
+          dateStr: dateExtra,
+          timeStr: timeExtra
         };
 
         if (itemType === 'service') {
           payload.isBooking = true;
           payload.bookingData = {
-            id: Date.now().toString(),
-            userChatId: userChatId,
-            userName: name,
+            name: name,
             phone: phone,
             serviceName: selectedItem.name,
             price: selectedItem.price,
@@ -399,14 +402,13 @@
             time: selectedTimeSlot,
             duration: serviceDuration,
             description: address,
+            slotKey: slotKeyExtra,
             createdAt: new Date().toISOString()
           };
         } else {
           payload.isOrder = true;
           payload.orderData = {
-            id: Date.now().toString(),
-            userChatId: userChatId,
-            userName: name,
+            name: name,
             phone: phone,
             productName: selectedItem.name,
             price: selectedItem.price,
@@ -415,6 +417,7 @@
           };
         }
 
+        // ۳. ارسال درخواست نهایی به ورکر برای ذخیره در KV و ارسال پیام به ربات
         await fetch(`${WORKER_URL}/`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -459,6 +462,7 @@
         step = 3;
         document.getElementById('step2').classList.add('hidden');
         document.getElementById('step3').classList.remove('hidden');
+        document.getElementById('addressBox').classList.remove('hidden');
         document.getElementById('stepBadge').innerText = '۳';
         document.getElementById('stepTitle').innerText = 'اطلاعات تماس و توضیحات';
         document.getElementById('descLabel').innerText = 'توضیحات یا یادداشت برای نوبت (اختیاری):';
@@ -484,7 +488,7 @@
           return;
         }
 
-let slotsToDisable = [], adminText = "", userText = "", slotKeyExtra = "", dateExtra = "", timeExtra = "";
+        let slotsToDisable = [], adminText = "", userText = "", slotKeyExtra = "", dateExtra = "", timeExtra = "";
 
         if (itemType === 'service') {
           slotKeyExtra = `${selectedDateKey}_${selectedTimeSlot}`;
@@ -492,7 +496,7 @@ let slotsToDisable = [], adminText = "", userText = "", slotKeyExtra = "", dateE
           timeExtra = selectedTimeSlot;
           slotsToDisable.push(slotKeyExtra);
 
-          // محاسبه روز هفته بر اساس تاریخ انتخاب شده
+          // محاسبه روز هفته بر اساس تاریخ شمسی انتخاب شده
           const [jy, jm, jd] = selectedDateKey.split('-').map(Number);
           const gDate = jalaali.toGregorian(jy, jm, jd);
           const dObj = new Date(gDate.gy, gDate.gm - 1, gDate.gd);
@@ -515,6 +519,8 @@ let slotsToDisable = [], adminText = "", userText = "", slotKeyExtra = "", dateE
         document.getElementById('successState').classList.remove('hidden');
   
         finalizeOrder(adminText, userText, slotsToDisable, slotKeyExtra, dateExtra, timeExtra);
+      }
+    }
   
     function prevStep() {
       if (step === 2) {
@@ -546,7 +552,7 @@ let slotsToDisable = [], adminText = "", userText = "", slotKeyExtra = "", dateE
       }
     }
 
-    // بخش مدیریت نوبت‌های من
+    // بخش مدیریت نوبت‌ها (فیلتر کردن نوبت‌های منقضی شده + اخطار ۴ ساعت)
     async function openMyBookings() {
       if (!userChatId) {
         alert("شناسه کاربری شما از طریق بله شناسایی نشد. لطفاً مینی‌اپ را یک‌بار ببندید و دوباره از داخل ربات باز کنید.");
@@ -570,14 +576,10 @@ let slotsToDisable = [], adminText = "", userText = "", slotKeyExtra = "", dateE
       myBookingsContainer.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">در حال بررسی نوبت‌های شما...</p>';
 
       try {
-        const res = await fetch(`${WORKER_URL}/admin-data`, { cache: 'no-store' });
-        const data = await res.json();
-        const bookings = Array.isArray(data.bookingsList) ? data.bookingsList : [];
+        const res = await fetch(`${WORKER_URL}/my-bookings?chatId=${userChatId}`);
+        const bookings = await res.json();
 
-        // فیلتر نوبت‌ها بر اساس چت‌آی‌دی کاربر
-        const userBookings = bookings.filter(b => String(b.userChatId) === String(userChatId));
-
-        if (userBookings.length === 0) {
+        if (!Array.isArray(bookings) || bookings.length === 0) {
           showNoActiveBookings(myBookingsContainer);
           return;
         }
@@ -585,7 +587,8 @@ let slotsToDisable = [], adminText = "", userText = "", slotKeyExtra = "", dateE
         const now = new Date();
         const activeBookings = [];
 
-        userBookings.forEach(b => {
+        // بررسی و جدا کردن نوبت‌های فعال از منقضی شده‌ها
+        bookings.forEach(b => {
           if (!b.date || !b.time) return;
           try {
             const parts = b.date.split('-'); 
@@ -593,6 +596,7 @@ let slotsToDisable = [], adminText = "", userText = "", slotKeyExtra = "", dateE
             const g = jalaali.toGregorian(parseInt(parts[0]), parseInt(parts[1]), parseInt(parts[2]));
             const appointmentEndTime = new Date(g.gy, g.gm - 1, g.gd, parseInt(timeParts[0]), parseInt(timeParts[1]));
             
+            // اگر زمان نوبت هنوز نگذشته باشد
             if (appointmentEndTime > now) {
               activeBookings.push(b);
             }
@@ -616,6 +620,8 @@ let slotsToDisable = [], adminText = "", userText = "", slotKeyExtra = "", dateE
         `;
 
         activeBookings.forEach(b => {
+          const safeKey = b.slotKey || "";
+          
           let canCancel = true;
           if (b.date && b.time) {
             try {
@@ -639,7 +645,7 @@ let slotsToDisable = [], adminText = "", userText = "", slotKeyExtra = "", dateE
                 ${!canCancel ? '<p class="text-[10px] text-rose-400 mt-1">کمتر از ۴ ساعت مانده (غیرقابل لغو)</p>' : ''}
               </div>
               ${canCancel ? `
-                <button onclick="confirmCancel('${b.id}')" class="px-3 py-1.5 bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white border border-rose-500/20 rounded-lg text-xs font-semibold transition cursor-pointer">
+                <button onclick="confirmCancel('${safeKey}')" class="px-3 py-1.5 bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white border border-rose-500/20 rounded-lg text-xs font-semibold transition cursor-pointer">
                   لغو نوبت
                 </button>` : `
                 <button disabled class="px-3 py-1.5 bg-slate-800 text-slate-600 border border-slate-700 rounded-lg text-xs font-semibold cursor-not-allowed">
@@ -657,47 +663,48 @@ let slotsToDisable = [], adminText = "", userText = "", slotKeyExtra = "", dateE
 
     function showNoActiveBookings(container) {
       container.innerHTML = `
-        <div class="text-center py-10 space-y-3">
-          <i class="fa-solid fa-calendar-xmark text-slate-600 text-4xl"></i>
-          <p class="text-xs text-slate-400">نوبت فعالی برای شما یافت نشد.</p>
-          <button onclick="location.reload()" class="px-4 py-2 bg-slate-800 text-slate-300 rounded-xl text-xs font-semibold cursor-pointer">بازگشت</button>
-        </div>
-      `;
+        <div class="text-center py-8 space-y-3">
+          <i class="fa-solid fa-calendar-xmark text-slate-500 text-4xl"></i>
+          <p class="text-xs text-slate-400">شما هیچ نوبت فعالی ندارید.</p>
+          <button onclick="location.reload()" class="px-4 py-2 bg-slate-800 text-slate-200 rounded-xl text-xs font-semibold cursor-pointer">بازگشت به صفحه اصلی</button>
+        </div>`;
     }
 
-    function confirmCancel(bookingId) {
-      pendingCancelId = bookingId;
+    function confirmCancel(slotKey) {
+      if (!slotKey) {
+        alert("این نوبت قدیمی است و کلید شناسایی ندارد. لطفاً یک نوبت جدید ثبت کنید.");
+        return;
+      }
+      pendingCancelKey = slotKey;
       document.getElementById('customConfirmModal').classList.remove('hidden');
     }
 
-    function closeConfirmModal(isConfirmed) {
+    function closeConfirmModal(result) {
       document.getElementById('customConfirmModal').classList.add('hidden');
-      if (isConfirmed && pendingCancelId) {
-        executeCancellation(pendingCancelId);
+      if (result && pendingCancelKey) {
+        executeCancel(pendingCancelKey);
       }
-      pendingCancelId = null;
+      pendingCancelKey = null;
     }
 
-    async function executeCancellation(bookingId) {
+    async function executeCancel(slotKey) {
       try {
         const res = await fetch(`${WORKER_URL}/cancel-booking`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ bookingId, userChatId })
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ chatId: userChatId, slotKey })
         });
-        const data = await res.json();
-
-        if (res.ok && data.success) {
-          alert('نوبت شما با موفقیت لغو شد و زمان آن آزاد گردید.');
-          location.reload();
+        const result = await res.json();
+        if (result.success) {
+          alert("نوبت شما با موفقیت لغو شد.");
+          openMyBookings(); 
         } else {
-          alert(data.error || 'خطا در لغو نوبت.');
+          alert("خطایی در لغو نوبت رخ داد.");
         }
       } catch (err) {
-        console.error(err);
-        alert('خطا در ارتباط با سرور.');
+        alert("خطای ارتباط با سرور.");
       }
     }
- </script>
+  </script>
 </body>
 </html>
