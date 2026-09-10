@@ -30,7 +30,7 @@
     <!-- بخش اول: مدیریت سانس‌ها -->
     <div class="space-y-4 border-b border-slate-800 pb-6">
       <h2 class="text-sm font-bold text-emerald-400 flex items-center gap-2">
-        <i class="fa-solid fa-calendar-days"></i> مدیریت تقویم و بستن سانس‌ها (۱۰ صبح تا ۱۰ شب)
+        <i class="fa-solid fa-calendar-days"></i> مدیریت تقویم و بستن سانس‌ها (<span class="persian-num">۱۰</span> صبح تا <span class="persian-num">۱۰</span> شب)
       </h2>
       
       <div class="space-y-2">
@@ -42,8 +42,8 @@
         <div class="flex items-center justify-between flex-wrap gap-2">
           <span class="text-xs text-slate-400">برای بستن یا آزاد کردن هر بازه روی آن کلیک کنید:</span>
           <div class="flex bg-slate-800 p-1 rounded-xl border border-slate-700 text-xs">
-            <button onclick="setAdminSlotMode(30)" id="mode30Btn" class="px-3 py-1 rounded-lg font-bold transition bg-emerald-500 text-white">بازه‌های ۳۰ دقیقه‌ای</button>
-            <button onclick="setAdminSlotMode(60)" id="mode60Btn" class="px-3 py-1 rounded-lg font-bold transition text-slate-400">بازه‌های ۱ ساعته</button>
+            <button onclick="setAdminSlotMode(30)" id="mode30Btn" class="px-3 py-1 rounded-lg font-bold transition bg-emerald-500 text-white">بازه‌های <span class="persian-num">۳۰</span> دقیقه‌ای</button>
+            <button onclick="setAdminSlotMode(60)" id="mode60Btn" class="px-3 py-1 rounded-lg font-bold transition text-slate-400">بازه‌های <span class="persian-num">۱</span> ساعته</button>
           </div>
         </div>
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5" id="adminTimeSlotsContainer">
@@ -88,7 +88,7 @@
         <h2 class="text-sm font-bold text-sky-400 flex items-center gap-2">
           <i class="fa-solid fa-users-rectangle"></i> لیست نوبت‌های رزرو شده مشتریان
         </h2>
-        <span id="bookingsCountBadge" class="text-[11px] bg-sky-500/20 text-sky-300 px-2.5 py-0.5 rounded-full border border-sky-500/30 font-bold">0 مورد</span>
+        <span id="bookingsCountBadge" class="text-[11px] bg-sky-500/20 text-sky-300 px-2.5 py-0.5 rounded-full border border-sky-500/30 font-bold">۰ مورد</span>
       </div>
       <div id="adminBookingsList" class="space-y-2.5 max-h-72 overflow-y-auto custom-scrollbar pr-1">
         <div class="text-xs text-slate-500 text-center py-2">در حال بارگذاری نوبت‌ها...</div>
@@ -101,7 +101,7 @@
         <h2 class="text-sm font-bold text-amber-400 flex items-center gap-2">
           <i class="fa-solid fa-bag-shopping"></i> لیست سفارشات محصولات فروشگاه
         </h2>
-        <span id="ordersCountBadge" class="text-[11px] bg-amber-500/20 text-amber-300 px-2.5 py-0.5 rounded-full border border-amber-500/30 font-bold">0 مورد</span>
+        <span id="ordersCountBadge" class="text-[11px] bg-amber-500/20 text-amber-300 px-2.5 py-0.5 rounded-full border border-amber-500/30 font-bold">۰ مورد</span>
       </div>
       <div id="adminOrdersList" class="space-y-2.5 max-h-72 overflow-y-auto custom-scrollbar pr-1">
         <div class="text-xs text-slate-500 text-center py-2">در حال بارگذاری سفارشات...</div>
@@ -176,6 +176,19 @@
     let selectedAdminDateKey = "";
     let adminSlotStep = 30;
 
+    // تابع پیشرفته برای فارسی‌سازی اعداد، ساعت‌ها و کاما‌گذاری استاندارد قیمت‌ها
+    function toPersianNum(str) {
+      if (str === null || str === undefined) return '';
+      
+      let stringValue = String(str).replace(/,/g, '');
+      if (!isNaN(stringValue) && stringValue.trim() !== '') {
+        stringValue = Number(stringValue).toLocaleString('en-US');
+      }
+
+      const persianDigits = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
+      return stringValue.replace(/\d/g, x => persianDigits[x]).replace(/,/g, '٫');
+    }
+
     document.addEventListener("DOMContentLoaded", () => {
       loadAdminData();
     });
@@ -216,12 +229,12 @@
       renderAdminTimes();
     }
 
-    // رندر لیست کامل نوبت‌های رزرو شده همراه با پشتیبانی کامل از تمام کلیدهای توضیحات
+    // رندر لیست کامل نوبت‌های رزرو شده
     function renderAdminBookings() {
       const container = document.getElementById('adminBookingsList');
       const badge = document.getElementById('bookingsCountBadge');
       container.innerHTML = '';
-      badge.innerText = `${bookingsList.length} مورد`;
+      badge.innerText = `${toPersianNum(bookingsList.length)} مورد`;
 
       if (bookingsList.length === 0) {
         container.innerHTML = '<div class="text-xs text-slate-500 text-center py-3 bg-slate-800/40 rounded-xl">هنوز نوبتی رزرو نشده است.</div>';
@@ -233,23 +246,22 @@
         const div = document.createElement('div');
         div.className = "p-3 bg-slate-800 border border-slate-700 rounded-xl text-xs space-y-2";
         
-        // استخراج توضیحات از تمام فیلدهای احتمالی در داده‌های ارسالی
         const noteText = item.note || item.description || item.address || item.comment || '';
         const hasNote = noteText.trim() !== '';
 
         div.innerHTML = `
           <div class="flex justify-between items-center font-bold text-white border-b border-slate-700/60 pb-1.5">
-            <span>👤 ${item.name || 'بدون نام'} (<span dir="ltr">${item.phone || '-'}</span>)</span>
+            <span>👤 ${item.name || 'بدون نام'} (<span dir="ltr">${toPersianNum(item.phone || '-')}</span>)</span>
             <span class="text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-lg border border-emerald-500/20">${item.serviceName || 'خدمت'}</span>
           </div>
-          <div class="text-slate-300 flex justify-between items-center">
-            <span>📅 تاریخ: <strong class="text-white" dir="ltr">${item.date || '-'}</strong> | ساعت: <strong class="text-white" dir="ltr">${item.time || '-'}</strong></span>
+          <div class="text-slate-300 flex justify-between items-center flex-wrap gap-1">
+            <span>📅 تاریخ: <strong class="text-white" dir="ltr">${toPersianNum(item.date || '-')}</strong> | ساعت: <strong class="text-white" dir="ltr">${toPersianNum(item.time || '-')}</strong></span>
             <button onclick="deleteBooking(${index})" class="bg-rose-500/20 text-rose-400 hover:bg-rose-500/30 px-2 py-1 rounded-lg transition cursor-pointer flex items-center gap-1">
               <i class="fa-solid fa-trash text-[10px]"></i> حذف
             </button>
           </div>
           <div class="text-slate-300 text-[11px] bg-slate-900/60 p-2.5 rounded-lg border border-slate-800 leading-relaxed">
-            <span class="text-slate-400 font-bold">توضیحات مشتری:</span> ${hasNote ? noteText : '<span class="text-slate-500 italic">بدون توضیحات</span>'}
+            <span class="text-slate-400 font-bold">توضیحات مشتری:</span> ${hasNote ? toPersianNum(noteText) : '<span class="text-slate-500 italic">بدون توضیحات</span>'}
           </div>
         `;
         container.appendChild(div);
@@ -263,12 +275,12 @@
       }
     }
 
-    // رندر لیست کامل سفارشات محصولات همراه با پشتیبانی کامل از تمام کلیدهای توضیحات
+    // رندر لیست کامل سفارشات محصولات فروشگاه
     function renderAdminOrders() {
       const container = document.getElementById('adminOrdersList');
       const badge = document.getElementById('ordersCountBadge');
       container.innerHTML = '';
-      badge.innerText = `${ordersList.length} مورد`;
+      badge.innerText = `${toPersianNum(ordersList.length)} مورد`;
 
       if (ordersList.length === 0) {
         container.innerHTML = '<div class="text-xs text-slate-500 text-center py-3 bg-slate-800/40 rounded-xl">هنوز سفارشی ثبت نشده است.</div>';
@@ -280,13 +292,12 @@
         const div = document.createElement('div');
         div.className = "p-3 bg-slate-800 border border-slate-700 rounded-xl text-xs space-y-2";
         
-        // استخراج توضیحات از تمام فیلدهای احتمالی در داده‌های ارسالی
         const noteText = item.note || item.description || item.address || item.comment || '';
         const hasNote = noteText.trim() !== '';
 
         div.innerHTML = `
           <div class="flex justify-between items-center font-bold text-white border-b border-slate-700/60 pb-1.5">
-            <span>👤 ${item.name || 'بدون نام'} (<span dir="ltr">${item.phone || '-'}</span>)</span>
+            <span>👤 ${item.name || 'بدون نام'} (<span dir="ltr">${toPersianNum(item.phone || '-')}</span>)</span>
             <span class="text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-lg border border-amber-500/20">🛒 ${item.productName || 'محصول'}</span>
           </div>
           <div class="flex justify-end">
@@ -295,7 +306,7 @@
             </button>
           </div>
           <div class="text-slate-300 text-[11px] bg-slate-900/60 p-2.5 rounded-lg border border-slate-800 leading-relaxed">
-            <span class="text-slate-400 font-bold">جزئیات تحویل / توضیحات:</span> ${hasNote ? noteText : '<span class="text-slate-500 italic">بدون توضیحات</span>'}
+            <span class="text-slate-400 font-bold">جزئیات تحویل / توضیحات:</span> ${hasNote ? toPersianNum(noteText) : '<span class="text-slate-500 italic">بدون توضیحات</span>'}
           </div>
         `;
         container.appendChild(div);
@@ -329,7 +340,7 @@
         const dateKey = `${jy}-${jm}-${jd}`;
 
         const dayName = persianDays[d.getDay()];
-        const displayDate = `${j.jd} ${persianMonths[j.jm]}`;
+        const displayDate = `${toPersianNum(j.jd)} ${persianMonths[j.jm]}`;
 
         if (i === 0 && !selectedAdminDateKey) {
           selectedAdminDateKey = dateKey;
@@ -399,7 +410,7 @@
             : 'bg-slate-800 border-slate-700 text-emerald-400 hover:border-slate-600'
         }`;
         b.innerHTML = `
-          <span dir="ltr">${slot.label}</span>
+          <span dir="ltr">${toPersianNum(slot.label)}</span>
           <span class="text-[11px] px-2 py-0.5 rounded-lg ${isLocked ? 'bg-rose-500/20 text-rose-300' : 'bg-emerald-500/20 text-emerald-300'}">
             ${isLocked ? 'بسته (تکمیل)' : 'باز (آزاد)'}
           </span>
@@ -450,8 +461,8 @@
         div.innerHTML = `
           <div class="flex items-center gap-3">
             <span class="font-bold text-white">${service.name}</span>
-            <span class="text-emerald-400">${service.price}</span>
-            <span class="text-slate-400">(${service.duration || 30} دقیقه)</span>
+            <span class="text-emerald-400">${toPersianNum(service.price)}</span>
+            <span class="text-slate-400">(<span class="persian-num">${toPersianNum(service.duration || 30)}</span> دقیقه)</span>
           </div>
           <div class="flex gap-2">
             <button onclick="editService(${index})" class="bg-slate-700 text-slate-200 px-2.5 py-1 rounded-lg hover:bg-slate-600 cursor-pointer">ویرایش</button>
@@ -522,7 +533,7 @@
           <div class="flex items-center gap-3">
             <img src="${product.image}" class="w-8 h-8 rounded-lg object-cover border border-slate-700">
             <span class="font-bold text-white">${product.name}</span>
-            <span class="text-amber-400">${product.price}</span>
+            <span class="text-amber-400">${toPersianNum(product.price)}</span>
           </div>
           <div class="flex gap-2">
             <button onclick="editProduct(${index})" class="bg-slate-700 text-slate-200 px-2.5 py-1 rounded-lg hover:bg-slate-600 cursor-pointer">ویرایش</button>
