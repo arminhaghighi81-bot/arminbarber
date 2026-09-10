@@ -141,6 +141,22 @@
     let step = 1, selectedItem = null, serviceDuration = 30, slotStepMinutes = 30, itemType = "service", selectedDateKey = "", selectedTimeSlot = "";
     let userChatId = null;
     let pendingCancelKey = null;
+
+    // تابع تبدیل ارقام انگلیسی به فارسی
+    function toPersianDigits(str) {
+      if (str === undefined || str === null) return "";
+      const persianDigits = {'0':'۰', '1':'۱', '2':'۲', '3':'۳', '4':'۴', '5':'۵', '6':'۶', '7':'۷', '8':'۸', '9':'۹'};
+      return str.toString().replace(/[0-9]/g, digit => persianDigits[digit]);
+    }
+
+    // تابع قالب‌بندی و فارسی‌سازی قیمت‌ها
+    function formatPrice(priceStr) {
+      if (priceStr === undefined || priceStr === null) return "";
+      const numericVal = priceStr.toString().replace(/[^0-9]/g, "");
+      if (!numericVal) return priceStr;
+      const formatted = Number(numericVal).toLocaleString('en-US');
+      return toPersianDigits(formatted);
+    }
   
     try {
       if (window.Bale && window.Bale.WebApp) {
@@ -190,10 +206,10 @@
               <div class="w-8 h-8 rounded-lg bg-slate-700 flex items-center justify-center text-slate-300"><i class="fa-solid fa-scissors"></i></div>
               <div>
                 <h3 class="text-xs font-semibold text-white">${item.name}</h3>
-                <p class="text-[11px] text-slate-400 mt-0.5">مدت زمان: ${item.duration || 30} دقیقه</p>
+                <p class="text-[11px] text-slate-400 mt-0.5">مدت زمان: ${toPersianDigits(item.duration || 30)} دقیقه</p>
               </div>
             </div>
-            <span class="text-xs font-bold text-emerald-400">${item.price}</span>
+            <span class="text-xs font-bold text-emerald-400">${formatPrice(item.price)}</span>
           `;
           div.onclick = () => selectCatalogItem(div, { ...item, type: 'service' });
           servicesContainer.appendChild(div);
@@ -214,7 +230,7 @@
                 <p class="text-[11px] text-slate-400 mt-0.5">تحویل حضوری در سالن</p>
               </div>
             </div>
-            <span class="text-xs font-bold text-amber-400">${item.price}</span>
+            <span class="text-xs font-bold text-amber-400">${formatPrice(item.price)}</span>
           `;
           div.onclick = () => selectCatalogItem(div, { ...item, type: 'product' });
           productsContainer.appendChild(div);
@@ -270,7 +286,7 @@
         const dateKey = `${jy}-${jm}-${jd}`;
 
         const dayName = persianDays[d.getDay()];
-        const displayDate = `${j.jd} ${persianMonths[j.jm]}`;
+        const displayDate = `${toPersianDigits(j.jd)} ${persianMonths[j.jm]}`;
 
         if (i === 0 && !selectedDateKey) {
           selectedDateKey = dateKey;
@@ -306,8 +322,8 @@
       document.getElementById('timeLabel').innerText = labelText;
 
       const slots = [];
-      let currentMinutes = 10 * 60; // ۱۰:۰۰ صبح
-      const endMinutes = 22 * 60;   // ۲۲:۰۰ شب
+      let currentMinutes = 10 * 60;
+      const endMinutes = 22 * 60;
 
       while (currentMinutes + slotStepMinutes <= endMinutes) {
         const startHour = Math.floor(currentMinutes / 60);
@@ -332,17 +348,18 @@
 
       slots.forEach(slot => {
         const isLocked = disabledSlots.includes(slot.key);
+        const persianSlotLabel = toPersianDigits(slot.label);
 
         const b = document.createElement('button');
         if (isLocked) {
           b.className = "p-2.5 rounded-xl border border-slate-800 bg-slate-900/50 text-xs text-slate-600 cursor-not-allowed flex items-center justify-between";
-          b.innerHTML = `<span dir="ltr">${slot.label}</span><span>(تکمیل)</span>`;
+          b.innerHTML = `<span>${persianSlotLabel}</span><span>(تکمیل)</span>`;
           b.disabled = true;
         } else {
           b.className = `p-2.5 rounded-xl border text-xs cursor-pointer transition flex items-center justify-center ${
-            selectedTimeSlot === slot.label ? 'border-emerald-500 text-emerald-400 bg-slate-800 font-bold' : 'border-slate-700 bg-slate-800 text-white hover:border-slate-600'
+            selectedTimeSlot === slot.label ? 'border-emerald-500 text-emerald-400 bg-slate-800 font-bold' : 'border-slate-700 bg-slate-800 text-white hover:border-slate-650'
           }`;
-          b.innerHTML = `<span dir="ltr">${slot.label}</span>`;
+          b.innerHTML = `<span>${persianSlotLabel}</span>`;
           b.onclick = () => {
             selectedTimeSlot = slot.label;
             renderTimes();
@@ -367,7 +384,6 @@
   
     async function finalizeOrder(adminText, userText, slotsToDisable, slotKeyExtra, dateExtra, timeExtra) {
       try {
-        // ۱. غیرفعال کردن اسلات زمانی در صورت رزرو خدمت
         if (itemType === 'service' && slotsToDisable.length > 0) {
           slotsToDisable.forEach(subKey => { if (!disabledSlots.includes(subKey)) disabledSlots.push(subKey); });
           await fetch(`${WORKER_URL}/admin-update`, {
@@ -381,7 +397,6 @@
         const phone = document.getElementById('custPhone').value.trim();
         const address = document.getElementById('custAddress').value.trim() || "بدون توضیحات";
 
-        // ۲. ساختاردهی پِی‌لود بر اساس نوع درخواست (نوبت یا سفارش)
         let payload = {
           adminText,
           userChatId,
@@ -417,7 +432,6 @@
           };
         }
 
-        // ۳. ارسال درخواست نهایی به ورکر برای ذخیره در KV و ارسال پیام به ربات
         await fetch(`${WORKER_URL}/`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -462,7 +476,6 @@
         step = 3;
         document.getElementById('step2').classList.add('hidden');
         document.getElementById('step3').classList.remove('hidden');
-        document.getElementById('addressBox').classList.remove('hidden');
         document.getElementById('stepBadge').innerText = '۳';
         document.getElementById('stepTitle').innerText = 'اطلاعات تماس و توضیحات';
         document.getElementById('descLabel').innerText = 'توضیحات یا یادداشت برای نوبت (اختیاری):';
@@ -489,6 +502,8 @@
         }
 
         let slotsToDisable = [], adminText = "", userText = "", slotKeyExtra = "", dateExtra = "", timeExtra = "";
+        const formattedItemPrice = formatPrice(selectedItem.price);
+        const persianTimeSlot = toPersianDigits(selectedTimeSlot);
 
         if (itemType === 'service') {
           slotKeyExtra = `${selectedDateKey}_${selectedTimeSlot}`;
@@ -496,19 +511,18 @@
           timeExtra = selectedTimeSlot;
           slotsToDisable.push(slotKeyExtra);
 
-          // محاسبه روز هفته بر اساس تاریخ شمسی انتخاب شده
           const [jy, jm, jd] = selectedDateKey.split('-').map(Number);
           const gDate = jalaali.toGregorian(jy, jm, jd);
           const dObj = new Date(gDate.gy, gDate.gm - 1, gDate.gd);
           const persianDays = ['یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنج‌شنبه', 'جمعه', 'شنبه'];
           const dayName = persianDays[dObj.getDay()];
 
-          adminText = `💈 **نوبت جدید در آرایشگاه آرمین**\n\n👤 مشتری: ${name}\n📞 تلفن: ${phone}\n✂️ خدمت: ${selectedItem.name} (${selectedItem.price})\n⏰ زمان: روز ${dayName} تاریخ ${selectedDateKey} ساعت ${selectedTimeSlot} (مدت: ${serviceDuration} دقیقه)\n💬 توضیحات: ${address}`;
+          adminText = `💈 **نوبت جدید در آرایشگاه آرمین**\n\n👤 مشتری: ${name}\n📞 تلفن: ${phone}\n✂️ خدمت: ${selectedItem.name} (${formattedItemPrice})\n⏰ زمان: روز ${dayName} تاریخ ${toPersianDigits(selectedDateKey)} ساعت ${persianTimeSlot} (مدت: ${toPersianDigits(serviceDuration)} دقیقه)\n💬 توضیحات: ${address}`;
           
-          userText = `✅ **رزرو شما با موفقیت ثبت شد!**\n\nسلام ${name} عزیز،\nنوبت شما برای خدمت **${selectedItem.name}** (${selectedItem.price}) در روز **${dayName}** تاریخ **${selectedDateKey}** ساعت **${selectedTimeSlot}** ثبت گردید.\n\nمنتظر حضور شما در آرایشگاه آرمین هستیم!✂️`;
+          userText = `✅ **رزرو شما با موفقیت ثبت شد!**\n\nسلام ${name} عزیز،\nنوبت شما برای خدمت **${selectedItem.name}** (${formattedItemPrice}) در روز **${dayName}** تاریخ **${toPersianDigits(selectedDateKey)}** ساعت **${persianTimeSlot}** ثبت گردید.\n\nمنتظر حضور شما در آرایشگاه آرمین هستیم!✂️`;
         } else {
-          adminText = `🛍️ **سفارش محصول جدید (تحویل در سالن)**\n\n👤 مشتری: ${name}\n📞 تلفن: ${phone}\n📦 محصول: ${selectedItem.name} (${selectedItem.price})\n🕒 جزئیات تحویل: ${address}`;
-          userText = `✅ **سفارش محصول شما ثبت شد!**\n\nسلام ${name} عزیز،\nسفارش خرید **${selectedItem.name}** (${selectedItem.price}) ثبت گردید. می‌توانید برای دریافت محصول به سالن مراجعه کنید.`;
+          adminText = `🛍️ **سفارش محصول جدید (تحویل در سالن)**\n\n👤 مشتری: ${name}\n📞 تلفن: ${phone}\n📦 محصول: ${selectedItem.name} (${formattedItemPrice})\n🕒 جزئیات تحویل: ${address}`;
+          userText = `✅ **سفارش محصول شما ثبت شد!**\n\nسلام ${name} عزیز،\nسفارش خرید **${selectedItem.name}** (${formattedItemPrice}) ثبت گردید. می‌توانید برای دریافت محصول به سالن مراجعه کنید.`;
           document.getElementById('successTitle').innerText = 'سفارش محصول ثبت شد';
           document.getElementById('successDesc').innerText = 'اطلاعات سفارش برای تحویل حضوری ارسال گردید.';
         }
@@ -552,7 +566,6 @@
       }
     }
 
-    // بخش مدیریت نوبت‌ها (فیلتر کردن نوبت‌های منقضی شده + اخطار ۴ ساعت)
     async function openMyBookings() {
       if (!userChatId) {
         alert("شناسه کاربری شما از طریق بله شناسایی نشد. لطفاً مینی‌اپ را یک‌بار ببندید و دوباره از داخل ربات باز کنید.");
@@ -587,7 +600,6 @@
         const now = new Date();
         const activeBookings = [];
 
-        // بررسی و جدا کردن نوبت‌های فعال از منقضی شده‌ها
         bookings.forEach(b => {
           if (!b.date || !b.time) return;
           try {
@@ -596,7 +608,6 @@
             const g = jalaali.toGregorian(parseInt(parts[0]), parseInt(parts[1]), parseInt(parts[2]));
             const appointmentEndTime = new Date(g.gy, g.gm - 1, g.gd, parseInt(timeParts[0]), parseInt(timeParts[1]));
             
-            // اگر زمان نوبت هنوز نگذشته باشد
             if (appointmentEndTime > now) {
               activeBookings.push(b);
             }
@@ -640,8 +651,8 @@
           html += `
             <div class="p-3 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-between">
               <div>
-                <h4 class="text-xs font-bold text-white">${b.serviceName} (${b.price})</h4>
-                <p class="text-[11px] text-slate-400 mt-1">تاریخ: ${b.date} | ساعت: ${b.time}</p>
+                <h4 class="text-xs font-bold text-white">${b.serviceName} (${formatPrice(b.price)})</h4>
+                <p class="text-[11px] text-slate-400 mt-1">تاریخ: ${toPersianDigits(b.date)} | ساعت: ${toPersianDigits(b.time)}</p>
                 ${!canCancel ? '<p class="text-[10px] text-rose-400 mt-1">کمتر از ۴ ساعت مانده (غیرقابل لغو)</p>' : ''}
               </div>
               ${canCancel ? `
